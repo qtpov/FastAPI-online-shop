@@ -27,10 +27,18 @@ class OrderRepo:
         # 2. Создаём OrderItems и уменьшаем склад
         for cart_item in cart.items:
             product = await product_repo.get_product_by_id(cart_item.product_id)
+
             if not product or not product.is_active:
-                raise HTTPException(status_code=404, detail=f"Product {cart_item.product_id} not available")
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Product {cart_item.product_id} not available"
+                )
+
             if cart_item.quantity > product.quantity:
-                raise HTTPException(status_code=409, detail=f"Not enough stock for {product.name}")
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Not enough stock for {product.name}"
+                )
 
             order_item = OrderItem(
                 order_id=order.id,
@@ -40,16 +48,17 @@ class OrderRepo:
             )
             self.db.add(order_item)
 
-            # уменьшаем количество на складе
             product.quantity -= cart_item.quantity
 
         # 3. Чистим корзину
-        await self.db.execute(delete(CartItem).where(CartItem.cart_id == cart.id))
+        await self.db.execute(
+            delete(CartItem).where(CartItem.cart_id == cart.id)
+        )
 
         # 4. Финальный коммит
         await self.db.commit()
 
-        # 5. Загружаем order с items и product для сериализации
+        # 5. Перечитываем заказ с items и product
         stmt = (
             select(Order)
             .where(Order.id == order.id)
@@ -58,9 +67,7 @@ class OrderRepo:
             )
         )
         result = await self.db.execute(stmt)
-        order = result.scalar_one()
-
-        return order
+        return result.scalar_one()
 
     async def list_orders_by_user(self, user_id: int):
         stmt = (
@@ -72,3 +79,66 @@ class OrderRepo:
         )
         result = await self.db.execute(stmt)
         return result.scalars().all()
+
+    async def pay_order(self, order_id: int, user_id: int):
+        stmt = select(Order).where(
+            Order.id == order_id,
+            Order.user_id == user_id
+        )
+        result = await self.db.execute(stmt)
+        order = result.scalar_one_or_none()
+
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        if order.status != "pending":
+            raise HTTPException(status_code=409, detail="Order cannot be paid")
+
+        order.status = "paid"
+        await self.db.commit()
+        await self.db.refresh(order)
+        # Перечитываем заказ с items и product
+        stmt = (
+            select(Order)
+            .where(Order.id == order.id)
+            .options(
+                selectinload(Order.items).selectinload(OrderItem.product)
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def cancel_order(self, order_id: int, user_id: int):
+        stmt = (
+            select(Order)
+            .where(Order.id == order_id, Order.user_id == user_id)
+            .options(
+                selectinload(Order.items).selectinload(OrderItem.product)
+            )
+        )
+        result = await self.db.execute(stmt)
+        order = result.scalar_one_or_none()
+
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        if order.status != "pending":
+            raise HTTPException(status_code=409, detail="Order cannot be cancelled")
+
+        # Возвращаем товары на склад
+        for item in order.items:
+            item.product.quantity += item.quantity
+
+        order.status = "cancelled"
+        await self.db.commit()
+        await self.db.refresh(order)
+
+        stmt = (
+            select(Order)
+            .where(Order.id == order.id)
+            .options(
+                selectinload(Order.items).selectinload(OrderItem.product)
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()

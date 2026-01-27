@@ -20,18 +20,9 @@ async def create_order(
     product_repo = ProductRepo(db)
     order_repo = OrderRepo(db)
     
-    # Берём корзину
     cart = await cart_repo.get_or_create_cart(user_id)
     if not cart.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
-    
-    # Проверяем наличие товаров на складе
-    for item in cart.items:
-        product = await product_repo.get_product_by_id(item.product_id)
-        if not product or not product.is_active:
-            raise HTTPException(status_code=404, detail=f"Product {item.product_id} not available")
-        if item.quantity > product.quantity:
-            raise HTTPException(status_code=409, detail=f"Not enough stock for {product.name}")
     
     # Создаём заказ из корзины
     order = await order_repo.create_order_from_cart(user_id, cart)
@@ -39,10 +30,6 @@ async def create_order(
     # Обновляем остатки на складе
     for item in order.items:
         product = await product_repo.get_product_by_id(item.product_id)
-        product.quantity -= item.quantity
-    
-    # Чистим корзину
-    await cart_repo.clear_cart(cart.id)
     
     return order
 
@@ -56,3 +43,25 @@ async def list_orders(
 
     orders = await order_repo.list_orders_by_user(user_id)
     return orders
+
+@router.post('/{order_id}/pay', response_model=OrderRead)
+async def pay_order( 
+    order_id: int, db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)):
+
+    user_id = current_user["user_id"]
+    order_repo = OrderRepo(db)
+
+    order = await order_repo.pay_order(order_id, user_id)
+    return order
+
+@router.post('/{order_id}/cancel', response_model=OrderRead)
+async def cancel_order( 
+    order_id: int, db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)):
+
+    user_id = current_user["user_id"]
+    order_repo = OrderRepo(db)
+
+    order = await order_repo.cancel_order(order_id, user_id)
+    return order

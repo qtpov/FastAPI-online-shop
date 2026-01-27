@@ -7,7 +7,7 @@ class Order(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, paid, shipped и т.д.
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, paid, shipped и cancelled
 
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
 
