@@ -1,6 +1,5 @@
 from sqlalchemy import String, Boolean, DateTime, func, Integer
 from sqlalchemy.orm import Mapped, mapped_column
-
 from app.core.database import Base
 
 class Product(Base):
@@ -13,3 +12,4 @@ class Product(Base):
     quantity: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)  

@@ -81,6 +81,7 @@ async def create_product(
         data.description,
         data.price,
         data.quantity,
+        data.image_url,
     )
 
 @router.delete("/products/{product_id}")
@@ -97,10 +98,7 @@ async def delete_product(
 
     return {"status": "deleted"}
 
-@router.put(
-    "/products/{product_id}",
-    response_model=ProductRead
-)
+@router.put("/products/{product_id}",response_model=ProductRead)
 async def update_product(
     product_id: int, product_data: ProductCreate,
     db: AsyncSession = Depends(get_db),

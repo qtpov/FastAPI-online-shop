@@ -1,7 +1,7 @@
 from pydantic import BaseModel, computed_field
 from app.schemas.product import ProductRead
 from datetime import datetime
-from typing import Literal
+from enum import Enum
 
 class OrderItemRead(BaseModel):
     id: int
@@ -34,5 +34,8 @@ class OrderHistoryRead(BaseModel):
     class Config:
         orm_mode = True
 
-class OrderStatusUpdate(BaseModel):
-    status: Literal["new", "paid", "shipped", "cancelled"]
+class OrderStatusUpdate(str, Enum):
+    created = "created"
+    paid = "paid"
+    shipped = "shipped"
+    canceled = "canceled"

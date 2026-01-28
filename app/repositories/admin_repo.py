@@ -4,6 +4,7 @@ from app.repositories.product_repo import ProductRepo
 from app.models.product import Product
 from app.schemas.product import ProductCreate
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from app.models.user import User
 
@@ -19,7 +20,11 @@ class UserService:
 
     async def create_user(self, email: str, password_hash: str, role: str = "user") -> User:
         user = User(email=email, hashed_password=password_hash, role=role)
-        return await self.repo.create_user(user)
+        try:
+            return await self.repo.create_user(user)
+        except IntegrityError:
+            await self.repo.db.rollback()
+            raise HTTPException(409, "User with this email already exists")
 
     async def delete_user(self, user_id: int):
         user = await self.repo.get_by_id(user_id)
@@ -61,9 +66,14 @@ class ProductService:
     async def list_products(self):
         return await self.repo.list_active_products()
 
-    async def create_product(self, name: str, description: str, price: float, quantity: int):
-        product = Product(name=name, description=description, price=price, quantity=quantity)
-        return await self.repo.create_product(product)
+    async def create_product(self, name: str, description: str, price: float, quantity: int, image_url: str | None = None):
+        product = Product(name=name, description=description, price=price, quantity=quantity, image_url=image_url)
+        try:
+            return await self.repo.create_product(product)
+        except IntegrityError:
+            await self.repo.db.rollback()
+            raise HTTPException(409, "product with this name already exists")
+    
 
     async def update_product(self, product_id: int, data: ProductCreate):
         product = await self.repo.get_product_by_id(product_id)
@@ -81,13 +91,9 @@ class ProductService:
         product = await self.repo.get_product_by_id(product_id)
         if not product:
             return None
-
+        
         if await self.repo.is_used_in_orders(product_id):
-            raise HTTPException(
-                status_code=400,
-                detail="Product is used in orders and cannot be deleted"
-            )
-
-        await self.repo.delete_product(product)
-        return True
-    
+            raise HTTPException(400, "Product is used in orders")
+        
+        product.is_active = False
+        return await self.repo.update_product(product)
