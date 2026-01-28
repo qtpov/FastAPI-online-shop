@@ -1,7 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, exists
 from app.models.product import Product
-
+from app.schemas.product import ProductCreate
+from app.models.order import OrderItem
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
 class ProductRepo:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -16,25 +19,30 @@ class ProductRepo:
 
     async def create_product(self, product: Product) -> Product:
         self.db.add(product)
-        await self.db.commit()
-        await self.db.refresh(product)
-        return product
-
-    async def update_product(self, product: Product, data: dict) -> Product | None:
-        if not product:
-            return None
-        # только существующие поля будут обновлены
-        valid_fields = {column.name for column in Product.__table__.columns}
-        for key, value in data.items():
-            if key in valid_fields:
-                setattr(product, key, value)
         try:
             await self.db.commit()
             await self.db.refresh(product)
             return product
-        except Exception:
+        except IntegrityError:
             await self.db.rollback()
-            return None
+            raise HTTPException(
+                status_code=409,
+                detail="Product with this name already exists"
+            )
+
+
+    async def update_product(self, product: Product) -> Product:
+        await self.db.commit()
+        await self.db.refresh(product)
+        return product
+    
+    async def is_used_in_orders(self, product_id: int) -> bool:
+        stmt = select(
+            exists().where(OrderItem.product_id == product_id)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar()
+
     async def delete_product(self, product: Product) -> None:
         await self.db.delete(product)
         await self.db.commit()

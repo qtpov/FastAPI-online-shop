@@ -6,6 +6,9 @@ from app.repositories.cart_repo import CartRepo
 from app.repositories.order_repo import OrderRepo
 from app.repositories.product_repo import ProductRepo
 from app.schemas.order import OrderRead
+from app.schemas.order import OrderHistoryRead
+from typing import List
+
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -17,21 +20,21 @@ async def create_order(
     user_id = current_user["user_id"]
     
     cart_repo = CartRepo(db)
-    product_repo = ProductRepo(db)
     order_repo = OrderRepo(db)
     
     cart = await cart_repo.get_or_create_cart(user_id)
     if not cart.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
     
-    # Создаём заказ из корзины
-    order = await order_repo.create_order_from_cart(user_id, cart)
-    
-    # Обновляем остатки на складе
-    for item in order.items:
-        product = await product_repo.get_product_by_id(item.product_id)
-    
+    try:
+        order = await order_repo.create_order_from_cart(user_id, cart)
+        await db.commit()  # коммитим всё транзакционно
+    except Exception:
+        await db.rollback()
+        raise
+
     return order
+
 
 @router.get("/", response_model=list[OrderRead])
 async def list_orders(
@@ -65,3 +68,14 @@ async def cancel_order(
 
     order = await order_repo.cancel_order(order_id, user_id)
     return order
+
+@router.get('/{order_id}/history', response_model=List[OrderHistoryRead])
+async def get_order_history( 
+    order_id: int, db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)):
+
+    user_id = current_user["user_id"]
+    order_repo = OrderRepo(db)
+    history = await order_repo.get_order_history(order_id, user_id)
+
+    return history

@@ -3,9 +3,10 @@ from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
 
-from app.models.order import Order, OrderItem
+from app.models.order import Order, OrderItem, OrderHistory
 from app.models.cart import CartItem
 from app.repositories.product_repo import ProductRepo
+from datetime import datetime
 
 
 class OrderRepo:
@@ -18,27 +19,17 @@ class OrderRepo:
 
         product_repo = ProductRepo(self.db)
 
-        # 1. Создаём заказ
+        # создаём заказ
         order = Order(user_id=user_id, status="pending")
         self.db.add(order)
-        await self.db.commit()
-        await self.db.refresh(order)
+        await self.db.flush()  # чтобы получить order.id для OrderItem
 
-        # 2. Создаём OrderItems и уменьшаем склад
         for cart_item in cart.items:
             product = await product_repo.get_product_by_id(cart_item.product_id)
-
             if not product or not product.is_active:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Product {cart_item.product_id} not available"
-                )
-
+                raise HTTPException(status_code=404, detail=f"Product {cart_item.product_id} not available")
             if cart_item.quantity > product.quantity:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Not enough stock for {product.name}"
-                )
+                raise HTTPException(status_code=409, detail=f"Not enough stock for {product.name}")
 
             order_item = OrderItem(
                 order_id=order.id,
@@ -50,21 +41,20 @@ class OrderRepo:
 
             product.quantity -= cart_item.quantity
 
-        # 3. Чистим корзину
-        await self.db.execute(
-            delete(CartItem).where(CartItem.cart_id == cart.id)
-        )
+        # чистим корзину
+        await self.db.execute(delete(CartItem).where(CartItem.cart_id == cart.id))
 
-        # 4. Финальный коммит
-        await self.db.commit()
+        await self.db.flush()  # отправляем все изменения в базу, но не коммитим
 
-        # 5. Перечитываем заказ с items и product
+        # запись в историю
+        history = OrderHistory(order_id=order.id, status=order.status, user_id=user_id)
+        self.db.add(history)
+
+        # перечитываем заказ с items и product
         stmt = (
             select(Order)
             .where(Order.id == order.id)
-            .options(
-                selectinload(Order.items).selectinload(OrderItem.product)
-            )
+            .options(selectinload(Order.items).selectinload(OrderItem.product))
         )
         result = await self.db.execute(stmt)
         return result.scalar_one()
@@ -80,65 +70,81 @@ class OrderRepo:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
+
     async def pay_order(self, order_id: int, user_id: int):
-        stmt = select(Order).where(
-            Order.id == order_id,
-            Order.user_id == user_id
-        )
-        result = await self.db.execute(stmt)
-        order = result.scalar_one_or_none()
+        async with self.db.begin():  # транзакция
+            stmt = select(Order).where(Order.id == order_id, Order.user_id == user_id)
+            result = await self.db.execute(stmt)
+            order = result.scalar_one_or_none()
 
-        if not order:
-            raise HTTPException(status_code=404, detail="Order not found")
+            if not order:
+                raise HTTPException(status_code=404, detail="Order not found")
 
-        if order.status != "pending":
-            raise HTTPException(status_code=409, detail="Order cannot be paid")
+            if order.status != "pending":
+                raise HTTPException(status_code=409, detail="Order cannot be paid")
 
-        order.status = "paid"
-        await self.db.commit()
-        await self.db.refresh(order)
-        # Перечитываем заказ с items и product
+            order.status = "paid"
+
+            # запись в историю
+            history = OrderHistory(order_id=order.id, status=order.status, user_id=user_id)
+            self.db.add(history)
+
+        # перечитываем заказ 
         stmt = (
             select(Order)
             .where(Order.id == order.id)
-            .options(
-                selectinload(Order.items).selectinload(OrderItem.product)
-            )
+            .options(selectinload(Order.items).selectinload(OrderItem.product))
         )
         result = await self.db.execute(stmt)
         return result.scalar_one()
+
 
     async def cancel_order(self, order_id: int, user_id: int):
-        stmt = (
-            select(Order)
-            .where(Order.id == order_id, Order.user_id == user_id)
-            .options(
+        async with self.db.begin():  # транзакция
+            stmt = select(Order).where(Order.id == order_id, Order.user_id == user_id).options(
                 selectinload(Order.items).selectinload(OrderItem.product)
             )
-        )
-        result = await self.db.execute(stmt)
-        order = result.scalar_one_or_none()
+            result = await self.db.execute(stmt)
+            order = result.scalar_one_or_none()
 
-        if not order:
-            raise HTTPException(status_code=404, detail="Order not found")
+            if not order:
+                raise HTTPException(status_code=404, detail="Order not found")
 
-        if order.status != "pending":
-            raise HTTPException(status_code=409, detail="Order cannot be cancelled")
+            if order.status != "pending":
+                raise HTTPException(status_code=409, detail="Order cannot be cancelled")
 
-        # Возвращаем товары на склад
-        for item in order.items:
-            item.product.quantity += item.quantity
+            # возвращаем товары на склад
+            for item in order.items:
+                item.product.quantity += item.quantity
 
-        order.status = "cancelled"
-        await self.db.commit()
-        await self.db.refresh(order)
+            order.status = "cancelled"
+
+            # запись в историю
+            history = OrderHistory(order_id=order.id, status=order.status, user_id=user_id)
+            self.db.add(history)
 
         stmt = (
             select(Order)
             .where(Order.id == order.id)
-            .options(
-                selectinload(Order.items).selectinload(OrderItem.product)
-            )
+            .options(selectinload(Order.items).selectinload(OrderItem.product))
         )
         result = await self.db.execute(stmt)
         return result.scalar_one()
+
+    async def get_order_history(self, order_id: int, user_id: int):
+        stmt = select(OrderHistory).where(OrderHistory.order_id == order_id, OrderHistory.user_id == user_id)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+    
+    async def get_order_by_id(self, order_id: int):
+        stmt = select(Order).where(Order.id == order_id).options(
+            selectinload(Order.items).selectinload(OrderItem.product)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+    
+    async def update_order(self, order: Order):
+        self.db.add(order)
+        await self.db.commit()
+        await self.db.refresh(order)
+        return order

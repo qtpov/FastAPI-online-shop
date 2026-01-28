@@ -36,13 +36,15 @@ async def get_product(id: int, db: AsyncSession = Depends(get_db)):
     return product
 
 @router.post("/", response_model=ProductRead, dependencies=[Depends(get_admin_user)])
-async def create_product(product_in: ProductCreate, db: AsyncSession = Depends(get_db)):
+async def create_product(product_in: ProductCreate, db: AsyncSession = Depends(get_db),
+            admin: dict = Depends(get_admin_user)):
     repo = ProductRepo(db)
     product = Product(**product_in.dict())
     return await repo.create_product(product)
 
 @router.put("/{id}", response_model=ProductRead, dependencies=[Depends(get_admin_user)])
-async def update_product(id: int, product_in: ProductCreate, db: AsyncSession = Depends(get_db)):
+async def update_product(id: int, product_in: ProductCreate, db: AsyncSession = Depends(get_db),
+                         admin: dict = Depends(get_admin_user)):
     repo = ProductRepo(db)
     product = await repo.get_product_by_id(id)
     if not product:
@@ -50,7 +52,8 @@ async def update_product(id: int, product_in: ProductCreate, db: AsyncSession = 
     return await repo.update_product(product, product_in.dict())
 
 @router.delete("/{id}", dependencies=[Depends(get_admin_user)])
-async def delete_product(id: int, db: AsyncSession = Depends(get_db)):
+async def delete_product(id: int, db: AsyncSession = Depends(get_db),
+                         admin: dict = Depends(get_admin_user)):
     repo = ProductRepo(db)
     product = await repo.get_product_by_id(id)
     if not product:
