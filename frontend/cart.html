@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Корзина</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">🛒 Корзина</div>
+  <button class="back-btn" onclick="window.location.href='index.html'">← Назад</button>
+</header>
+
+<main class="cart-page">
+  <div id="cart-items" class="cart-container"></div>
+  <div class="checkout-panel" id="checkout-panel">
+    <h3>Итог</h3>
+    <p>Товаров: <span id="total-items">0</span></p>
+    <p>Сумма: <span id="total-price">0 ₽</span></p>
+    <button id="checkout-btn">Оформить заказ</button>
+  </div>
+  <div id="payment-modal" class="modal">
+  <div class="modal-content">
+    <h3>Оплата заказа</h3>
+    <p>Сумма к оплате: <span id="modal-total-price">0 ₽</span></p>
+    <button id="pay-btn">Оплатить</button>
+    <button id="close-modal-btn">Отмена</button>
+  </div>
+  </div>
+</main>
+
+<script src="js/cart.js"></script>
+</body>
+</html>

@@ -13,6 +13,7 @@ class CartItemRead(BaseModel):
     product_id: int
     quantity: int
     price: float
+    product: ProductRead | None = None
 
     model_config = {"from_attributes": True}
 

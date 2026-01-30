@@ -5,6 +5,7 @@ from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductRead
 from app.core.database import get_db
 from app.api.deps import get_admin_user
+from fastapi import Query
 
 router = APIRouter(
     prefix="/products", tags=["products"]
@@ -20,7 +21,7 @@ async def list_products(q: str = None, db: AsyncSession = Depends(get_db)):
     return products
 
 @router.get("/search", response_model=list[ProductRead])
-async def search_products(q: str, db: AsyncSession = Depends(get_db)):
+async def search_products(q: str = Query(..., min_length=2), db: AsyncSession = Depends(get_db)):
     if not q:
         return []
     repo = ProductRepo(db)

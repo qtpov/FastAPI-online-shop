@@ -6,6 +6,7 @@ from app.repositories.cart_repo import CartRepo
 from app.repositories.product_repo import ProductRepo
 from app.schemas.cart import CartItemCreate, CartItemUpdate, CartRead
 from app.models.cart import CartItem
+from app.models.product import Product
 
 router = APIRouter(prefix="/cart", tags=["cart"])
 
@@ -17,6 +18,13 @@ async def get_cart(
     user_id = current_user["user_id"]
     repo = CartRepo(db)
     cart = await repo.get_or_create_cart(user_id)
+
+    # подставляем продукт в каждый элемент
+    for item in cart.items:
+        if hasattr(item, "product_id") and not getattr(item, "product", None):
+            product = await db.get(Product, item.product_id)
+            item.product = product
+
     return cart
 
 

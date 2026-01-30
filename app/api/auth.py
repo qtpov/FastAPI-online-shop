@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.security import hash_password
 from app.core.security import verify_password, create_access_token, create_refresh_token
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserRead, UserLogin
 from app.models.user import User
 from app.core.database import get_db
 from app.api.deps import get_refresh_user
@@ -37,12 +37,16 @@ async def register(user: UserCreate,
     return new_user
 
 @router.post("/login")
-async def login(email: str, password: str,db: AsyncSession = Depends(get_db)):
-
-    result = await db.execute(select(User).where(User.email == email))
+async def login(
+    data: UserLogin,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(User).where(User.email == data.email)
+    )
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(password, user.hashed_password):
+    if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -54,7 +58,7 @@ async def login(email: str, password: str,db: AsyncSession = Depends(get_db)):
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
     }
 
 @router.post("/refresh")
