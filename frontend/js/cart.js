@@ -9,6 +9,14 @@ const modalTotalPrice = document.getElementById("modal-total-price");
 const payBtn = document.getElementById("pay-btn");
 const closeModalBtn = document.getElementById("close-modal-btn");
 
+function showToast(message, color="#10b981") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.style.background = color;
+    toast.style.display = "block";
+    setTimeout(() => toast.style.display = "none", 3000);
+  }
+
 // ===== Загрузка корзины =====
 async function loadCart() {
   const token = localStorage.getItem("token");
@@ -118,7 +126,7 @@ async function updateItem(itemId, quantity, spanEl, itemEl) {
     updateTotals();
   } catch (err) {
     console.error(err);
-    alert(err.message);
+    showToast(err.message);
   }
 }
 
@@ -142,7 +150,7 @@ function updateTotals() {
 // ===== Оформление заказа =====
 checkoutBtn?.addEventListener("click", () => {
   const totalPrice = parseFloat(totalPriceEl.textContent);
-  if (totalPrice === 0) return alert("Корзина пуста");
+  if (totalPrice === 0) return showToast("Корзина пуста");
 
   modalTotalPrice.textContent = totalPrice + " ₽";
   paymentModal.style.display = "flex";
@@ -150,23 +158,19 @@ checkoutBtn?.addEventListener("click", () => {
 
 payBtn.addEventListener("click", async () => {
   const token = localStorage.getItem("token");
-  if (!token) return alert("Войдите чтобы оплатить");
+  if (!token) return showToast("Войдите чтобы оплатить");
 
   try {
-    const res = await fetch("http://127.0.0.1:8000/orders/", {
+    const res = await fetch(`${API_URL}/orders/${orderId}/pay`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${token}` }
     });
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.detail || "Ошибка оплаты");
-    }
-    alert("Оплата прошла успешно!");
-    paymentModal.style.display = "none";
-    loadCart(); // очищаем корзину
+    if (!res.ok) throw new Error("Ошибка оплаты");
+    showToast("Оплата прошла успешно!");
+    // обновляем список заказов сразу
+    ordersBtn.click();
   } catch (err) {
-    console.error(err);
-    alert(err.message);
+    showToast(err.message, "#dc2626"); // красный для ошибок
   }
 });
 

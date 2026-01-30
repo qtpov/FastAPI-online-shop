@@ -23,6 +23,35 @@ header {
   margin: 1rem;
 }
 
+header form {
+  flex: 1;
+  margin: 0 1rem;
+}
+
+header #searchInput {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+header .auth-buttons button {
+  background: #10b981;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+header .auth-buttons button:hover {
+  background: #059669;
+}
+
 header .logo { font-weight: 700; font-size: 1.5rem; }
 header input { flex: 1; margin: 0 1rem; padding: 0.5rem 1rem; border-radius: 12px; border: 1px solid #ccc; }
 header .cart-btn { font-size: 1.5rem; cursor: pointer; margin-right: 1rem; }
@@ -318,12 +347,78 @@ footer a:hover { text-decoration: underline; }
   cursor: pointer;
   font-weight: 500;
 }
+.modal-content button {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+.modal-content input {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
 
+#login-submit, #register-submit {
+  background-color: #10b981;
+  color: #fff;
+}
+#login-submit:hover, #register-submit:hover {
+  background-color: #059669;
+}
+
+#close-login, #close-register {
+  background-color: #ccc;
+  color: #111;
+}
+#close-login:hover, #close-register:hover {
+  background-color: #999;
+}
 #pay-btn { background: #10b981; color: #fff; }
 #pay-btn:hover { background: #059669; }
 
 #close-modal-btn { background: #ccc; color: #111; }
 #close-modal-btn:hover { background: #999; }
+
+#orders-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  text-align: left;
+}
+
+#orders-list li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: #10b981;
+  color: #fff;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  display: none;
+  z-index: 3000;
+  font-weight: 500;
+  animation: fadeInOut 3s forwards;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(20px); }
+  10%, 90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(20px); }
+}
 
 
 /* Forms */

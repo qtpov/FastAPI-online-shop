@@ -8,53 +8,71 @@
 <body>
 <header>
   <div class="logo">MyShop</div>
-  <input id="searchInput" type="text" placeholder="Search products...">
+
+  <!-- Обёртка формы для отключения autofill -->
+  <form autocomplete="off" style="display:inline;">
+    <!-- Скрытое поле для "обманки" браузера -->
+    <input type="text" style="display:none">
+
+    <!-- Настоящий поиск -->
+    <input id="searchInput" type="text" name="search_field" placeholder="Search products..." autocomplete="off" />
+  </form>
+
   <div class="cart-btn" onclick="window.location.href='cart.html'">🛒</div>
   <div class="auth-buttons" id="auth-buttons">
-    <a href="#" id="login-btn">Login</a>
-    <a href="#" id="register-btn">Register</a>
-    <a href="#" id="orders-btn" style="display:none;">История заказов</a>
-    <a href="#" id="logout-btn" style="display:none;">Выйти</a>
+    <button id="login-btn">Login</button>
+    <button id="register-btn">Register</button>
+    <button id="orders-btn" style="display:none;">История заказов</button>
+    <button id="logout-btn" style="display:none;">Выйти</button>
   </div>
 </header>
 
 <main>
   <div id="products" class="products-grid"></div>
 </main>
- <!-- История заказов -->
-  <div id="orders-modal" class="modal">
-    <div class="modal-content">
-      <h3>История заказов</h3>
-      <ul id="orders-list"></ul>
-      <button id="close-orders-btn">Закрыть</button>
-    </div>
-  </div>
 
-  <!-- Логин -->
-  <div id="login-modal" class="modal">
-    <div class="modal-content">
-      <h3>Вход</h3>
-      <input type="email" id="login-email" placeholder="Email">
-      <input type="password" id="login-password" placeholder="Пароль">
-      <button id="login-submit">Войти</button>
-      <button id="close-login">Закрыть</button>
-    </div>
+<!-- История заказов -->
+<div id="orders-modal" class="modal">
+  <div class="modal-content">
+    <h3>История заказов</h3>
+    <ul id="orders-list"></ul>
+    <button id="close-orders-btn">Закрыть</button>
   </div>
+</div>
 
-  <!-- Регистрация -->
-  <div id="register-modal" class="modal">
-    <div class="modal-content">
-      <h3>Регистрация</h3>
-      <input type="email" id="register-email" placeholder="Email">
-      <input type="password" id="register-password" placeholder="Пароль">
-      <button id="register-submit">Зарегистрироваться</button>
-      <button id="close-register">Закрыть</button>
-    </div>
+<!-- Логин -->
+<div id="login-modal" class="modal">
+  <div class="modal-content">
+    <h3>Вход</h3>
+    <input type="email" id="login-email" placeholder="Email">
+    <input type="password" id="login-password" placeholder="Пароль">
+    <button id="login-submit">Войти</button>
+    <button id="close-login">Закрыть</button>
   </div>
+</div>
+
+<!-- Регистрация -->
+<div id="register-modal" class="modal">
+  <div class="modal-content">
+    <h3>Регистрация</h3>
+    <input type="email" id="register-email" placeholder="Email">
+    <input type="password" id="register-password" placeholder="Пароль">
+    <button id="register-submit">Зарегистрироваться</button>
+    <button id="close-register">Закрыть</button>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
 <footer>
   <div>© My Shop 2026</div>
 </footer>
 
 <script src="js/main.js"></script>
+<script>
+  // Очистка поля поиска сразу после загрузки
+  document.addEventListener("DOMContentLoaded", () => {
+    const searchInput = document.getElementById("searchInput");
+    setTimeout(() => { searchInput.value = ""; }, 10);
+  });
+</script>
 </body>
 </html>
